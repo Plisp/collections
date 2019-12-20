@@ -139,23 +139,21 @@
         (current (root tree))
         (parent nil))
     (declare (function key test))
-    (loop :while current
-          :do (setf parent current)
-              (if (funcall test
-                           (funcall key data)
-                           (funcall key (data current)))
-                  (setf current (child/left current))
-                  (setf current (child/right current))))
-    (setf (parent node) parent)
-    (cond
-      ((null parent)
-       (setf (root tree) node))
-      ((funcall test
-                (funcall key data)
-                (funcall key (data parent)))
-       (setf (child/left parent) node))
-      (t (setf (child/right parent) node)))
-    node))
+    (flet ((test (data2)
+             (funcall test (funcall key data) (funcall key data2))))
+      (loop :while current
+            :do (setf parent current)
+                (if (test (data current))
+                    (setf current (child/left current))
+                    (setf current (child/right current))))
+      (setf (parent node) parent)
+      (cond
+        ((null parent)
+         (setf (root tree) node))
+        ((test (data parent))
+         (setf (child/left parent) node))
+        (t (setf (child/right parent) node)))
+      node)))
 
 (declaim (ftype (function (tree t) (values tree boolean)) delete))
 (defun delete (tree node/data)
