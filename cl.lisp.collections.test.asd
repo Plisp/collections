@@ -15,4 +15,4 @@
   :components
   ((:file "package")
    (:file "binary-search-tree")
-   (:file "red-black-tree")))
+   #++(:file "red-black-tree")))

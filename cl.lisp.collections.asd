@@ -14,5 +14,6 @@
   :in-order-to ((asdf:test-op (asdf:test-op #:cl.lisp.collections.test)))
   :components
   ((:file "package")
+   (:file "tree")
    (:file "binary-search-tree")
-   (:file "red-black-tree")))
+   #++(:file "red-black-tree")))
