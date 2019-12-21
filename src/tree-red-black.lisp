@@ -1,6 +1,11 @@
 ;;;; A red-black tree implementation.
+;;;; A specialization of binary search trees in which each node is assigned a
+;;;; red or black color, used to keep the tree approximately height-balanced
+;;;; when a mutation occurs.
 
 (in-package #:cl.lisp.collections.tree)
+
+;;; Type definitions and constructors
 
 (defclass red-black-tree (binary-search-tree) ())
 
@@ -18,13 +23,77 @@
         (child/left instance) instance
         (child/right instance) instance))
 
-(defmethod node-p ((node red-black-tree-node))
-  (unless (eq node (sentinel (tree node)))
+;;; Internal utility functions
+
+(defun %red-black-tree/delete (node)
+  (let* ((x nil)
+         (y node)
+         (color (color y)))
+    (cond
+      ((not (node-p (child/left node)))
+       (setf x (child/right node))
+       (transplant node (child/right node)))
+      ((not (node-p (child/right node)))
+       (setf x (child/left node))
+       (transplant node (child/left node)))
+      (t (setf y (nth-value 1 (min (child/right node)))
+               color (color y)
+               x (child/right y))
+         (cond
+           ((eq (parent y) node)
+            (setf (parent x) y))
+           (t (transplant y (child/right y))
+              (setf (child/right y) (child/right node)
+                    (parent (child/right y)) y)))
+         (transplant node y)
+         (setf (child/left y) (child/left node)
+               (parent (child/left y)) y
+               (color y) (color node))))
+    (when (eq color :black)
+      (%red-black-tree/delete-fix x))
     node))
+
+(defun %red-black-tree/delete-fix (node)
+  (macrolet ((fix (rotate1 rotate2)
+               (let ((child1 (a:symbolicate '#:child/ rotate1))
+                     (child2 (a:symbolicate '#:child/ rotate2)))
+                 `(progn
+                    (setf w (,child2 (parent x)))
+                    (when (eq (color w) :red)
+                      (setf (color w) :black
+                            (color (parent x)) :red)
+                      (rotate ,rotate1 (parent x))
+                      (setf w (,child2 (parent x))))
+                    (cond
+                      ((and (eq (color (,child1 w)) :black)
+                            (eq (color (,child2 w)) :black))
+                       (setf (color w) :red
+                             x (parent x)))
+                      ((eq (color (,child2 w)) :black)
+                       (setf (color (,child1 w)) :black
+                             (color w) :red)
+                       (rotate ,rotate2 w)
+                       (setf w (,child2 (parent x))))
+                      (t (setf (color w) (color (parent x))
+                               (color (parent x)) :black
+                               (color (,child2 w)) :black)
+                         (rotate ,rotate1 (parent x))
+                         (setf x (root (tree node)))))))))
+    (let ((x node)
+          (w nil))
+      (u:while (and (not (node-p x))
+                    (eq (color x) :black))
+        (if (eq x (child/left (parent x)))
+            (fix :left :right)
+            (fix :right :left))))))
+
+;;; Internal protocol
 
 (defmethod transplant :after ((node1 red-black-tree-node)
                               (node2 red-black-tree-node))
   (setf (parent node2) (parent node1)))
+
+;;; User protocol
 
 (defmethod insert :after ((tree red-black-tree) (node red-black-tree-node))
   (setf (child/left node) (sentinel tree)
@@ -57,63 +126,4 @@
   node)
 
 (defmethod delete ((tree red-black-tree) (node red-black-tree-node))
-  (let* ((x nil)
-         (y node)
-         (color (color y)))
-    (cond
-      ((not (node-p (child/left node)))
-       (setf x (child/right node))
-       (transplant node (child/right node)))
-      ((not (node-p (child/right node)))
-       (setf x (child/left node))
-       (transplant node (child/left node)))
-      (t (setf y (nth-value 1 (min (child/right node)))
-               color (color y)
-               x (child/right y))
-         (cond
-           ((eq (parent y) node)
-            (setf (parent x) y))
-           (t (transplant y (child/right y))
-              (setf (child/right y) (child/right node)
-                    (parent (child/right y)) y)))
-         (transplant node y)
-         (setf (child/left y) (child/left node)
-               (parent (child/left y)) y
-               (color y) (color node))))
-    (when (eq color :black)
-      (delete/fix tree x))
-    node))
-
-(defmethod delete/fix ((tree red-black-tree) (node red-black-tree-node))
-  (macrolet ((fix (rotate1 rotate2)
-               (let ((child1 (a:symbolicate '#:child/ rotate1))
-                     (child2 (a:symbolicate '#:child/ rotate2)))
-                 `(progn
-                    (setf w (,child2 (parent x)))
-                    (when (eq (color w) :red)
-                      (setf (color w) :black
-                            (color (parent x)) :red)
-                      (rotate ,rotate1 (parent x))
-                      (setf w (,child2 (parent x))))
-                    (cond
-                      ((and (eq (color (,child1 w)) :black)
-                            (eq (color (,child2 w)) :black))
-                       (setf (color w) :red
-                             x (parent x)))
-                      ((eq (color (,child2 w)) :black)
-                       (setf (color (,child1 w)) :black
-                             (color w) :red)
-                       (rotate ,rotate2 w)
-                       (setf w (,child2 (parent x))))
-                      (t (setf (color w) (color (parent x))
-                               (color (parent x)) :black
-                               (color (,child2 w)) :black)
-                         (rotate ,rotate1 (parent x))
-                         (setf x (root tree))))))))
-    (let ((x node)
-          (w nil))
-      (u:while (and (not (node-p x))
-                    (eq (color x) :black))
-        (if (eq x (child/left (parent x)))
-            (fix :left :right)
-            (fix :right :left))))))
+  (%red-black-tree/delete node))

@@ -1,13 +1,13 @@
 (in-package #:cl.lisp.collections.test)
 
-(define-test rbt/make-tree
+(define-test red-black-tree/make-tree
   (let ((tree (tree:make-tree 'tree:red-black-tree)))
     (of-type tree::tree tree)
     (false (tree::node-p (tree::root tree)))
     (is eq #'identity (tree::key tree))
     (is eq #'< (tree::test tree))))
 
-(define-test rbt/valid-p
+(define-test red-black-tree/valid-p
   (dotimes (i 10)
     (let ((tree (tree:make-tree 'tree:red-black-tree)))
       (dotimes (i 1000)
@@ -19,7 +19,7 @@
     (setf (tree::data (tree::root tree)) 42)
     (false (tree:valid-p tree))))
 
-(define-test rbt/walk
+(define-test red-black-tree/walk
   (let ((tree (tree:make-tree 'tree:red-black-tree))
         (input '(8 2 5 1 4 9 3 10 7 6))
         (result nil))
@@ -30,7 +30,7 @@
     (tree:walk tree (lambda (x) (push (* x 10) result)))
     (is equal '(10 20 30 40 50 60 70 80 90 100) (reverse result))))
 
-(define-test rbt/find
+(define-test red-black-tree/find
   (let ((tree (tree:make-tree 'tree:red-black-tree)))
     (false (tree:find tree 42))
     (tree:insert tree 420)
@@ -47,12 +47,12 @@
     (fail (tree:find tree :foo))
     (fail (tree:find tree '(:foo . 420)))))
 
-(define-test rbt/insert
+(define-test red-black-tree/insert
   (let ((tree (tree:make-tree 'tree:red-black-tree)))
     (of-type tree:node (tree:insert tree 42))
     (is = 42 (tree:find tree 42))))
 
-(define-test rbt/delete
+(define-test red-black-tree/delete
   (let ((tree (tree:make-tree 'tree:red-black-tree)))
     (false (tree:delete tree 1))
     (dotimes (i 1000)
@@ -66,7 +66,7 @@
     (true (tree:delete tree 1))
     (false (tree:find tree 1))))
 
-(define-test rbt/min
+(define-test red-black-tree/min
   (let ((tree (tree:make-tree 'tree:red-black-tree)))
     (false (tree:min tree))
     (dotimes (i 1000)
@@ -83,7 +83,7 @@
     (tree:delete tree 50)
     (is = 199 (cdr (tree:min tree)))))
 
-(define-test rbt/max
+(define-test red-black-tree/max
   (let ((tree (tree:make-tree 'tree:red-black-tree)))
     (false (tree:max tree))
     (dotimes (i 1000)
@@ -100,7 +100,7 @@
     (tree:delete tree 999)
     (is = 700 (cdr (tree:max tree)))))
 
-(define-test rbt/previous
+(define-test red-black-tree/previous
   (let ((tree (tree:make-tree 'tree:red-black-tree)))
     (dotimes (i 100)
       (tree:insert tree (1+ i)))
@@ -109,7 +109,7 @@
     (is = 98 (tree:previous (nth-value 1 (tree:find tree 100))))
     (false (tree:previous (nth-value 1 (tree:find tree 1))))))
 
-(define-test rbt/next
+(define-test red-black-tree/next
   (let ((tree (tree:make-tree 'tree:red-black-tree)))
     (dotimes (i 100)
       (tree:insert tree (1+ i)))

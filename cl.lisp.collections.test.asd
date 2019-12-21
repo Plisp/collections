@@ -14,5 +14,5 @@
   :perform (asdf:test-op (o c) (uiop:symbol-call :parachute :test :cl.lisp.collections.test))
   :components
   ((:file "package")
-   (:file "tree-bst")
+   (:file "tree-binary-search")
    (:file "tree-red-black")))

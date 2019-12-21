@@ -13,8 +13,6 @@
   :serial t
   :in-order-to ((asdf:test-op (asdf:test-op #:cl.lisp.collections.test)))
   :components
-  ((:module "trees"
-    :components
-    ((:file "protocol")
-     (:file "tree-bst")
-     (:file "tree-red-black")))))
+  ((:file "tree")
+   (:file "tree-binary-search")
+   (:file "tree-red-black")))
