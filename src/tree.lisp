@@ -78,11 +78,11 @@
 
 (defgeneric valid-p (tree))
 
-(defgeneric walk (tree func)
-  (:method ((tree tree) func)
+(defgeneric walk (tree func &key order)
+  (:method ((tree tree) func &key (order :in))
     (check-type func function)
     (a:when-let ((node (root tree)))
-      (walk node func))))
+      (walk node func :order order))))
 
 (defgeneric find (tree item))
 

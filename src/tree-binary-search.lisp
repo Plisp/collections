@@ -16,11 +16,36 @@
 
 ;;; Internal utility functions
 
-(defun %binary-search-tree/walk (node func)
+(defun %binary-search-tree/walk-pre-order (node func)
   (when (node-p node)
-    (%binary-search-tree/walk (child/left node) func)
     (funcall func (data node))
-    (%binary-search-tree/walk (child/right node) func)))
+    (%binary-search-tree/walk-pre-order (child/left node) func)
+    (%binary-search-tree/walk-pre-order (child/right node) func)))
+
+(defun %binary-search-tree/walk-in-order (node func)
+  (loop :with current = (root (tree node))
+        :with stack
+        :do (cond
+              ((node-p current)
+               (push current stack)
+               (setf current (child/left current)))
+              (stack
+               (setf current (pop stack))
+               (funcall func (data current))
+               (setf current (child/right current)))
+              (t (loop-finish)))))
+
+(defun %binary-search-tree/walk-post-order (node func)
+  (when (node-p node)
+    (%binary-search-tree/walk-post-order (child/left node) func)
+    (%binary-search-tree/walk-post-order (child/right node) func)
+    (funcall func (data node))))
+
+(defun %binary-search-tree/walk (node func order)
+  (ecase order
+    (:pre (%binary-search-tree/walk-pre-order node func))
+    (:in (%binary-search-tree/walk-in-order node func))
+    (:post (%binary-search-tree/walk-post-order node func))))
 
 (defun %binary-search-tree/find (tree item)
   (labels ((%find (node key test)
@@ -134,8 +159,8 @@
                t))
       (%check (root tree) (test tree) (key tree)))))
 
-(defmethod walk ((node binary-search-tree-node) func)
-  (%binary-search-tree/walk node func))
+(defmethod walk ((node binary-search-tree-node) func &key (order :in))
+  (%binary-search-tree/walk node func order))
 
 (defmethod find ((tree binary-search-tree) item)
   (%binary-search-tree/find tree item))
