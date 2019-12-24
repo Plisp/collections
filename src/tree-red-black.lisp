@@ -20,8 +20,8 @@
 
 (defmethod initialize-instance :after ((instance red-black-tree-node) &key)
   (setf (parent instance) instance
-        (child/left instance) instance
-        (child/right instance) instance))
+        (left instance) instance
+        (right instance) instance))
 
 ;;; Internal utility functions
 
@@ -30,24 +30,24 @@
          (y node)
          (color (color y)))
     (cond
-      ((not (node-p (child/left node)))
-       (setf x (child/right node))
-       (transplant node (child/right node)))
-      ((not (node-p (child/right node)))
-       (setf x (child/left node))
-       (transplant node (child/left node)))
-      (t (setf y (nth-value 1 (min (child/right node)))
+      ((not (node-p (left node)))
+       (setf x (right node))
+       (transplant node (right node)))
+      ((not (node-p (right node)))
+       (setf x (left node))
+       (transplant node (left node)))
+      (t (setf y (nth-value 1 (min (right node)))
                color (color y)
-               x (child/right y))
+               x (right y))
          (cond
            ((eq (parent y) node)
             (setf (parent x) y))
-           (t (transplant y (child/right y))
-              (setf (child/right y) (child/right node)
-                    (parent (child/right y)) y)))
+           (t (transplant y (right y))
+              (setf (right y) (right node)
+                    (parent (right y)) y)))
          (transplant node y)
-         (setf (child/left y) (child/left node)
-               (parent (child/left y)) y
+         (setf (left y) (left node)
+               (parent (left y)) y
                (color y) (color node))))
     (when (eq color :black)
       (%red-black-tree/delete-fix x))
@@ -55,8 +55,8 @@
 
 (defun %red-black-tree/delete-fix (node)
   (macrolet ((fix (rotate1 rotate2)
-               (let ((child1 (a:symbolicate '#:child/ rotate1))
-                     (child2 (a:symbolicate '#:child/ rotate2)))
+               (let ((child1 (a:symbolicate rotate1))
+                     (child2 (a:symbolicate rotate2)))
                  `(progn
                     (setf w (,child2 (parent x)))
                     (when (eq (color w) :red)
@@ -83,7 +83,7 @@
           (w nil))
       (u:while (and (not (node-p x))
                     (eq (color x) :black))
-        (if (eq x (child/left (parent x)))
+        (if (eq x (left (parent x)))
             (fix :left :right)
             (fix :right :left))))))
 
@@ -96,8 +96,8 @@
 ;;; User protocol
 
 (defmethod insert :after ((tree red-black-tree) (node red-black-tree-node))
-  (setf (child/left node) (sentinel tree)
-        (child/right node) (sentinel tree)
+  (setf (left node) (sentinel tree)
+        (right node) (sentinel tree)
         (color node) :red)
   (loop :for current = node
         :for parent = (parent current)
@@ -119,9 +119,9 @@
                                 (color grandparent) :red)
                           (rotate rotate2 grandparent)))
                        nil)))
-              (if (eq parent (child/left grandparent))
-                  (process #'child/right :left :right)
-                  (process #'child/left :right :left)))
+              (if (eq parent (left grandparent))
+                  (process #'right :left :right)
+                  (process #'left :right :left)))
         :finally (setf (color (root tree)) :black))
   node)
 

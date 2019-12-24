@@ -3,7 +3,7 @@
 (define-test binary-search-tree/make-tree
   (let ((tree (tree:make-tree 'tree:binary-search-tree)))
     (of-type tree:binary-search-tree tree)
-    (false (tree::root tree))
+    (false (tree::node-p (tree::root tree)))
     (is eq #'identity (tree::key tree))
     (is eq #'< (tree::test tree))))
 

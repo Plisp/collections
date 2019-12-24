@@ -42,7 +42,7 @@
           :initarg :test)))
 
 (defclass node ()
-  ((%tree :reader tree
+  ((%tree :accessor tree
           :initarg :tree)
    (%data :accessor data
           :initarg :data)
