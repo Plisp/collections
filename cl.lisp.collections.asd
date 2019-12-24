@@ -15,4 +15,6 @@
   :components
   ((:file "tree")
    (:file "tree-binary-search")
-   (:file "tree-red-black")))
+   (:file "tree-red-black")
+   (:file "tree-splay")
+   (:file "tree-avl")))

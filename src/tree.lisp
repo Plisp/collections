@@ -12,7 +12,8 @@
   ;; tree types
   (:export
    #:binary-search-tree
-   #:red-black-tree)
+   #:red-black-tree
+   #:splay-tree)
   ;; API
   (:export
    #:delete
