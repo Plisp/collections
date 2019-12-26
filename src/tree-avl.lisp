@@ -10,36 +10,117 @@
 (defclass avl-tree (binary-search-tree) ())
 
 (defclass avl-tree-node (binary-search-tree-node)
-  ((%height :accessor height
-            :initform 0)
-   (%balance-factor :accessor balance-factor
-                    :initform 0)))
+  ((%balance-factor :accessor balance-factor
+                    :initform 0
+                    :type (integer -2 2))))
 
 ;;; Internal utility functions
 
-(defun %avl-tree/update (node)
-  (let ((left-height -1)
-        (right-height -1))
-    (when (node-p (left node))
-      (setf left-height (height (left node))))
-    (when (node-p (right node))
-      (setf right-height (height (right node))))
-    (setf (height node) (1+ (cl:max left-height right-height))
-          (balance-factor node) (- right-height left-height))))
+;; these two are merely for testing
 
-(defun %avl-tree/balance (node)
-  (case (balance-factor node)
-    (-2 (if (<= (balance-factor (left node)) 0)
-            (rotate :right node)
-            (progn
-              (setf (left node) (rotate :left (left node)))
-              (rotate :right node))))
-    (2 (if (>= (balance-factor (right node)) 0)
-           (rotate :left node)
-           (progn
-             (setf (right node) (rotate :right (right node)))
-             (rotate :left node))))
-    (t node)))
+(defun tree-to-list (root)
+  "Returns the binary tree as a list."
+  (cond ((not (node-p root)) :sentinel)
+        (t
+         (list (format nil "value:~d b-factor:~d" (data root) (balance-factor root))
+               (tree-to-list (left root))
+               (tree-to-list (right root))))))
+
+(defun %avl-tree/check-invariants (tree)
+  (labels ((recur (node)
+             (cond ((not (node-p node)) 0)
+                   (t (let ((left-height (recur (left node)))
+                            (right-height (recur (right node))))
+                        (if (or (null left-height) (null right-height)
+                                (/= (+ left-height (balance-factor node)) right-height))
+                            nil
+                            (1+ (cl:max left-height right-height))))))))
+    (recur (root tree))))
+
+;; (loop with test = (make-tree 'avl-tree)
+;;             repeat 2000
+;;             do (insert test (make-node test (print (random 10))))
+;;                (unless (%avl-tree/check-invariants test)
+;;                  (return (values test t)))
+;;             finally (return (values test nil)))
+
+(defun %avl-tree/balance (new)
+  (loop :with z = new
+        :with parx
+        :with new-root
+        :for x = (parent z) then (parent z)
+        :while (node-p x)
+        :do (tagbody
+               (if (eq z (right x))
+                   (if (plusp (balance-factor x))
+                       (progn
+                         (setf parx (parent x))
+                         (if (minusp (balance-factor z))
+                             ;; XXX really should use double rotation here v
+                             (let ((bal-lz (balance-factor (left z))))
+                               ;;(printv:printv :rl)
+                               (rotate :right z)
+                               (setf new-root (rotate :left x)) ; new root was (left z)
+                               (case bal-lz
+                                 (-1 (setf (balance-factor new-root) 0
+                                           (balance-factor x) 0
+                                           (balance-factor z) +1))
+                                 (0 (setf (balance-factor new-root) 0
+                                          (balance-factor x) 0
+                                          (balance-factor z) 0))
+                                 (+1 (setf (balance-factor new-root) 0
+                                           (balance-factor x) -1
+                                           (balance-factor z) 0)))
+                               ;; (printv:printv (tree-to-list (parent new-root))
+                               ;;                (data new-root)
+                               ;;                (balance-factor new-root))
+                               )
+                             (setf new-root (rotate :left x))))
+                       (progn
+                         (when (minusp (balance-factor x))
+                           (setf (balance-factor x) 0)
+                           (return))
+                         (incf (balance-factor x))
+                         (setf z x)
+                         (go upwards)))
+                   (if (minusp (balance-factor x))
+                       (progn
+                         (setf parx (parent x))
+                         (if (plusp (balance-factor z))
+                             ;; save factor of (right z) before rotation and fix afterwards
+                             (let ((bal-rz (balance-factor (right z))))
+                               ;;(printv:printv :lr (tree-to-list x))
+                               (rotate :left z)
+                               (setf new-root (rotate :right x))
+                               (case bal-rz
+                                 (-1
+                                  (setf (balance-factor new-root) 0
+                                        (balance-factor x) +1
+                                        (balance-factor z) 0))
+                                 (0
+                                  (setf (balance-factor new-root) 0
+                                        (balance-factor x) 0
+                                        (balance-factor z) 0))
+                                 (+1
+                                  (setf (balance-factor new-root) 0
+                                        (balance-factor x) 0
+                                        (balance-factor z) -1)))
+                               ;;(printv:printv (tree-to-list new-root))
+                               )
+                             (setf new-root (rotate :right x))))
+                       (progn
+                         (when (plusp (balance-factor x))
+                           (setf (balance-factor x) 0)
+                           (return))
+                         (decf (balance-factor x))
+                         (setf z x)
+                         (go upwards))))
+               ;;(when (node-p parx) (printv:printv (tree-to-list parx)))
+               (setf (parent new-root) parx)
+               (if (node-p parx)
+                   (return)
+                   (return new-root))
+             upwards)))
 
 ;;; Internal protocol
 
@@ -56,8 +137,13 @@
       (if (eq (right p) node)
           (setf (right p) b)
           (setf (left p) b)))
-    (%avl-tree/update node)
-    (%avl-tree/update b)
+    (if (= (balance-factor b) 0)
+        (progn
+          (setf (balance-factor b) -1
+                (balance-factor node) +1))
+        (progn
+          (setf (balance-factor b) 0
+                (balance-factor node) 0)))
     b))
 
 (defmethod rotate ((direction (eql :right)) (node avl-tree-node))
@@ -73,13 +159,19 @@
       (if (eq (left p) node)
           (setf (left p) b)
           (setf (right p) b)))
-    (%avl-tree/update node)
-    (%avl-tree/update b)
+    (if (= (balance-factor b) 0)
+        (progn
+          (setf (balance-factor b) +1
+                (balance-factor node) -1))
+        (progn
+          (setf (balance-factor b) 0
+                (balance-factor node) 0)))
     b))
 
 ;;; User protocol
 
 (defmethod insert :after ((tree avl-tree) (node avl-tree-node))
-  (%avl-tree/update (parent node))
-  (%avl-tree/balance (parent node))
+  (let ((new-root (%avl-tree/balance node)))
+    (when new-root
+      (setf (root tree) new-root)))
   node)
