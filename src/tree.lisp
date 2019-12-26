@@ -11,6 +11,7 @@
    #:min)
   ;; tree types
   (:export
+   #:avl-tree
    #:binary-search-tree
    #:red-black-tree
    #:splay-tree)
