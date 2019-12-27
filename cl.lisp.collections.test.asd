@@ -16,4 +16,5 @@
   ((:file "package")
    (:file "tree-binary-search")
    (:file "tree-red-black")
-   (:file "tree-splay")))
+   (:file "tree-avl")
+   #++(:file "tree-splay")))
