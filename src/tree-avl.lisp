@@ -1,7 +1,7 @@
 ;;;; An AVL tree implementation.
-;;;; A specialization of red-black trees, for lookup-intensive applications. AVL
-;;;; trees can be faster than red-black trees because they are more strictly
-;;;; height-balanced.
+;;;; A specialization of a binary search tree, for lookup-intensive
+;;;; applications. AVL trees can be faster than red-black trees because they are
+;;;; more strictly height-balanced.
 
 (in-package #:cl.lisp.collections.tree)
 
