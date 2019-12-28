@@ -108,8 +108,9 @@
            (setf (right successor) (right node)
                  (parent right) successor))
          (transplant node successor)
-         (setf (left successor) (left node)
-               (parent left) successor))))
+         (setf (left successor) (left node))
+         (when (node-p left)
+           (setf (parent left) successor)))))
   node)
 
 ;;; Internal protocol
