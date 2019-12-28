@@ -18,7 +18,8 @@
 
 (defun %binary-search-tree/walk-pre-order (node func)
   (when (node-p node)
-    (funcall func (data node))
+    (u:do-hash-keys (k (data node))
+      (funcall func k))
     (%binary-search-tree/walk-pre-order (left node) func)
     (%binary-search-tree/walk-pre-order (right node) func)))
 
@@ -31,7 +32,8 @@
                (setf current (left current)))
               (stack
                (setf current (pop stack))
-               (funcall func (data current))
+               (u:do-hash-keys (k (data current))
+                 (funcall func k))
                (setf current (right current)))
               (t (loop-finish)))))
 
@@ -39,7 +41,8 @@
   (when (node-p node)
     (%binary-search-tree/walk-post-order (left node) func)
     (%binary-search-tree/walk-post-order (right node) func)
-    (funcall func (data node))))
+    (u:do-hash-keys (k (data node))
+      (funcall func k))))
 
 (defun %binary-search-tree/walk (node func order)
   (ecase order
@@ -48,19 +51,21 @@
     (:post (%binary-search-tree/walk-post-order node func))))
 
 (defun %binary-search-tree/find (tree item)
-  (labels ((%find (node key test)
-             (a:when-let ((result (and (node-p node)
-                                       (funcall key (data node)))))
+  (labels ((%find (node key sorter)
+             (a:when-let ((result (and (node-p node) (key node))))
                (cond
-                 ((funcall test item result)
-                  (%find (left node) key test))
-                 ((funcall test result item)
-                  (%find (right node) key test))
+                 ((funcall sorter key result)
+                  (%find (left node) key sorter))
+                 ((funcall sorter result key)
+                  (%find (right node) key sorter))
                  (t node)))))
-    (with-slots (%root %key %test) tree
-      (a:when-let ((node (%find %root %key %test)))
-        (values (data node)
-                node)))))
+    (when (typep item (item-type tree))
+      (a:if-let ((node (%find (root tree)
+                              (funcall (key tree) item)
+                              (sorter tree))))
+        (values (u:href (data node) item)
+                node)
+        (values nil nil)))))
 
 (defun %binary-search-tree/rotate-left (node)
   (let ((parent (parent node))
@@ -146,19 +151,17 @@
 
 (defmethod valid-p ((tree binary-search-tree))
   (let ((previous nil))
-    (labels ((%check (node test key)
+    (labels ((%check (node sorter)
                (when (node-p node)
-                 (when (or (null (%check (left node) test key))
+                 (when (or (null (%check (left node) sorter))
                            (and previous
-                                (funcall test
-                                         (funcall key (data node))
-                                         (funcall key (data previous)))))
+                                (funcall sorter (key node) (key previous))))
                    (return-from %check))
                  (setf previous node)
                  (return-from %check
-                   (%check (right node) test key)))
+                   (%check (right node) sorter)))
                t))
-      (%check (root tree) (test tree) (key tree)))))
+      (%check (root tree) (sorter tree)))))
 
 (defmethod walk ((node binary-search-tree-node) func &key (order :in))
   (%binary-search-tree/walk node func order))
@@ -167,24 +170,23 @@
   (%binary-search-tree/find tree item))
 
 (defmethod insert ((tree binary-search-tree) (node binary-search-tree-node))
-  (with-slots (%root %key %test) tree
-    (flet ((test (data)
-             (funcall %test (funcall %key (data node)) (funcall %key data))))
-      (loop :with current = %root
-            :with parent = (sentinel tree)
-            :while (node-p current)
-            :do (setf parent current)
-                (if (test (data current))
-                    (setf current (left current))
-                    (setf current (right current)))
-            :finally (setf (parent node) parent)
-                     (cond
-                       ((not (node-p parent))
-                        (setf %root node))
-                       ((test (data parent))
-                        (setf (left parent) node))
-                       (t (setf (right parent) node))))
-      node)))
+  (loop :with sorter = (sorter tree)
+        :with key = (key node)
+        :with current = (root tree)
+        :with parent = (sentinel tree)
+        :while (node-p current)
+        :do (setf parent current)
+            (if (funcall sorter key (key current))
+                (setf current (left current))
+                (setf current (right current)))
+        :finally (setf (parent node) parent)
+                 (cond
+                   ((not (node-p parent))
+                    (setf (root tree) node))
+                   ((funcall sorter key (key parent))
+                    (setf (left parent) node))
+                   (t (setf (right parent) node))))
+  node)
 
 (defmethod delete ((tree binary-search-tree) (node binary-search-tree-node))
   (%binary-search-tree/delete node))
@@ -194,14 +196,14 @@
     (loop :for current = (left node)
           :while (node-p current)
           :do (setf node current)
-          :finally (return (values (data node) node)))))
+          :finally (return node))))
 
 (defmethod max ((node binary-search-tree-node))
   (when (node-p node)
     (loop :for current = (right node)
           :while (node-p current)
           :do (setf node current)
-          :finally (return (values (data node) node)))))
+          :finally (return node))))
 
 (defmethod previous ((node binary-search-tree-node))
   (when (node-p node)
@@ -211,8 +213,7 @@
             :for parent = (parent current)
             :while (and (node-p parent)
                         (eq current (left parent)))
-            :finally (when (node-p parent)
-                       (return (values (data parent) parent)))))))
+            :finally (return parent)))))
 
 (defmethod next ((node binary-search-tree-node))
   (when (node-p node)
@@ -222,5 +223,4 @@
             :for parent = (parent current)
             :while (and (node-p parent)
                         (eq current (right parent)))
-            :finally (when (node-p parent)
-                       (return (values (data parent) parent)))))))
+            :finally (return parent)))))

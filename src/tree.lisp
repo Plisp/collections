@@ -38,30 +38,49 @@
               :initform nil)
    (%root :accessor root
           :initform nil)
+   (%item-type :reader item-type
+               :initarg :item-type)
    (%key :reader key
          :initarg :key)
-   (%test :reader test
-          :initarg :test)))
+   (%sorter :reader sorter
+            :initarg :sorter)
+   (%hash-test :reader hash-test
+               :initarg :hash-test)))
 
 (defclass node ()
   ((%tree :accessor tree
           :initarg :tree)
+   (%key :reader key
+         :initarg :key)
    (%data :accessor data
           :initarg :data)
    (%parent :accessor parent
             :initform nil)))
 
-(defun make-tree (type &key (key #'identity) (test #'<))
+(defun make-tree (type &key item-type (key #'identity) (sort #'<)
+                         (hash-test #'eql))
+  (unless item-type
+    (error "Must specify :ITEM-TYPE denoting the type of items stored in the ~
+            tree."))
   (if (and (not (eq type 'tree))
            (subtypep type 'tree))
-      (make-instance type :key key :test test)
+      (make-instance type
+                     :item-type item-type
+                     :key key
+                     :sorter sort
+                     :hash-test hash-test)
       (error "Unknown tree type: ~s." type)))
 
 (defun make-node (tree item &rest args)
   (let* ((class-name (class-name (class-of tree)))
          (type (a:format-symbol (symbol-package class-name) "~a-NODE"
-                                class-name)))
-    (apply #'make-instance type :tree tree :data item args)))
+                                class-name))
+         (key (funcall (key tree) item)))
+    (apply #'make-instance type
+           :tree tree
+           :key key
+           :data (u:dict (hash-test tree) item item)
+           args)))
 
 ;;; Internal utility functions
 
@@ -90,8 +109,13 @@
 
 (defgeneric insert (tree item)
   (:method ((tree tree) item)
-    (let ((node (make-node tree item)))
-      (insert tree node))))
+    (a:if-let ((node (node-p (nth-value 1 (find tree item)))))
+      (progn
+        (setf (u:href (data node) item) item)
+        node)
+      (let ((node (make-node tree item)))
+        (insert tree node)
+        node))))
 
 (defgeneric delete (tree item)
   (:method ((tree tree) item)

@@ -8,13 +8,11 @@
   :bug-tracker "https://github.com/mfiano/collections/issues"
   :encoding :utf-8
   :depends-on (#:cl.lisp.collections
-               #:parachute)
+               #:prove)
+  :defsystem-depends-on (#:prove-asdf)
+  :perform (asdf:test-op (op c) (funcall (intern #.(string :run) :prove) c))
   :pathname "test"
   :serial t
-  :perform (asdf:test-op (o c) (uiop:symbol-call :parachute :test :cl.lisp.collections.test))
   :components
   ((:file "package")
-   (:file "tree-binary-search")
-   (:file "tree-red-black")
-   (:file "tree-avl")
-   #++(:file "tree-splay")))
+   (:test-file "tree")))

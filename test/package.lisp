@@ -3,4 +3,6 @@
 (defpackage #:cl.lisp.collections.test
   (:local-nicknames (#:tree #:cl.lisp.collections.tree))
   (:use #:cl
-        #:parachute))
+        #:prove))
+
+(setf prove:*enable-colors* t)
