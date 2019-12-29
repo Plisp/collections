@@ -15,7 +15,7 @@
     (return-from %splay-tree/join node2))
   (unless (node-p node2)
     (return-from %splay-tree/join node1))
-  (let ((node (nth-value 1 (max node1))))
+  (let ((node (max node1)))
     (%splay-tree/splay node)
     (setf (right node) node2
           (parent node2) node)
@@ -78,7 +78,7 @@
     (setf (root left) (left (root tree))
           (root right) (right (root tree)))
     (if (node-p (root left))
-        (let ((max (nth-value 1 (max (root left)))))
+        (let ((max (max (root left))))
           (%splay-tree/splay max)
           (setf (right (root left)) (root right)
                 (root tree) (root left)))

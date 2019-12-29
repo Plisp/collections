@@ -49,23 +49,6 @@ TODO put in red-black tree tests"
                                        nil)))))))))
     (and (eq (color (root tree)) :black) (recur (root tree)))))
 
-;; (loop :with test = (make-tree 'red-black-tree :item-type 'integer)
-;;             :with nums
-;;             :for random = (random 100)
-;;             :repeat 1000
-;;             :do (push random nums)
-;;                 (insert test (make-node test random))
-;;                 (unless (%red-black-tree/check-invariants test)
-;;                   (return (values test t)))
-;;             finally (loop :named inner ; deletion
-;;                           :with random-nums = (a:shuffle nums)
-;;                           :for n = (pop random-nums)
-;;                           :while n
-;;                           :do (delete test n)
-;;                               (unless (%red-black-tree/check-invariants test)
-;;                                 (return (values test t))))
-;;                     (return (values test nil)))
-
 (defun %red-black-tree/delete (node)
   (let* ((x nil)
          (y node)
@@ -78,7 +61,7 @@ TODO put in red-black tree tests"
        (setf x (left node))
        (transplant node (left node)))
       (t
-       (setf y (nth-value 1 (min (right node)))
+       (setf y (min (right node))
              color (color y)
              x (right y))
        (cond

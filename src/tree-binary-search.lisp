@@ -105,7 +105,7 @@
      (transplant node (right node)))
     ((not (node-p (right node)))
      (transplant node (left node)))
-    (t (let* ((successor (nth-value 1 (min (right node))))
+    (t (let* ((successor (min (right node)))
               (left (left successor))
               (right (right successor)))
          (unless (eq node (parent successor))

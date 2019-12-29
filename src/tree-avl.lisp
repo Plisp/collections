@@ -74,7 +74,7 @@ is returned, indicating rebalancing stopped before reaching the root))."
 
 (defun %avl-tree/delete (node)
   (if (and (node-p (left node)) (node-p (right node)))
-      (let ((replacement (nth-value 1 (min (right node)))))
+      (let ((replacement (min (right node))))
         (setf (data node) (data replacement))
         (%avl-tree/delete replacement))
       (let ((direction (if (eq node (left (parent node)))
