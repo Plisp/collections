@@ -138,7 +138,7 @@
   (let ((parent (parent node1)))
     (cond
       ((not (node-p parent))
-       (setf (root (tree node2)) node2))
+       (setf (root (tree node1)) node2))
       ((eq node1 (left parent))
        (setf (left parent) node2))
       (t (setf (right parent) node2)))))

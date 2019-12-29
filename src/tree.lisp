@@ -122,6 +122,14 @@
     (a:when-let ((node (node-p (nth-value 1 (find tree item)))))
       (delete tree node))))
 
+(defgeneric delete (tree item)
+  (:method ((tree tree) item)
+    (a:when-let* ((node (node-p (nth-value 1 (find tree item))))
+                  (data (data node)))
+      (if (<= (hash-table-count data) 1)
+          (delete tree node)
+          (remhash item data)))))
+
 (defgeneric min (tree)
   (:method ((tree tree))
     (a:when-let ((node (node-p (root tree))))
