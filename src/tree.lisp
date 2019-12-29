@@ -119,11 +119,10 @@
 
 (defgeneric delete (tree item)
   (:method ((tree tree) item)
-    (a:when-let* ((node (node-p (nth-value 1 (find tree item))))
-                  (data (data node)))
-      (if (<= (hash-table-count data) 1)
+    (a:when-let ((node (node-p (nth-value 1 (find tree item)))))
+      (if (<= (hash-table-count (data node)) 1)
           (delete tree node)
-          (remhash item data)))))
+          (remhash item (data node))))))
 
 (defgeneric min (tree)
   (:method ((tree tree))
