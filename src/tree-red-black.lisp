@@ -28,26 +28,25 @@
 (defun %red-black-tree/check-invariants (tree)
   "Checks the red-black-tree conditions for the tree/subtree with root ROOT.
 Returns the black depth of the tree on success.
-TODO put in red-black tree tests"
+TODO: Put in red-black tree tests."
   (labels ((recur (node)
-             (cond ((not (node-p node)) 0)
-                   (t (let ((a (recur (left node)))
-                            (b (recur (right node)))
-                            (parcheck t))
-                        (when (node-p (left node))
-                          (setf parcheck (eq (parent (left node)) node)))
-                        (when (node-p (right node))
-                          ;; if parcheck is already wrong it's wrong
-                          (setf parcheck (and parcheck (eq (parent (right node)) node))))
-                        (if (or (not parcheck) (null a) (null b) (/= a b))
-                            nil
-                            (cond ((eq :black (color node)) (1+ a))
-                                  (t
-                                   (if (and (eq :black (color (left node)))
-                                            (eq :black (color (right node))))
-                                       a
-                                       nil)))))))))
-    (and (eq (color (root tree)) :black) (recur (root tree)))))
+             (if (node-p node)
+                 (let ((a (recur (left node)))
+                       (b (recur (right node)))
+                       (parcheck t))
+                   (when (node-p (left node))
+                     (setf parcheck (eq (parent (left node)) node)))
+                   (when (node-p (right node))
+                     (setf parcheck (and parcheck
+                                         (eq (parent (right node)) node))))
+                   (when (and parcheck a b (= a b))
+                     (if (eq :black (color node))
+                         (1+ a)
+                         (when (and (eq :black (color (left node)))
+                                    (eq :black (color (right node))))
+                           a)))))))
+    (and (eq (color (root tree)) :black)
+         (recur (root tree)))))
 
 (defun %red-black-tree/delete (node)
   (let* ((x nil)
@@ -60,57 +59,29 @@ TODO put in red-black tree tests"
       ((not (node-p (right node)))
        (setf x (left node))
        (transplant node (left node)))
-      (t
-       (setf y (min (right node))
-             color (color y)
-             x (right y))
-       (cond
-         ((eq (parent y) node)
-          (setf (parent x) y))
-         (t (transplant y (right y))
-            (setf (right y) (right node)
-                  (parent (right y)) y)))
-       (transplant node y)
-       (setf (left y) (left node)
-             (parent (left y)) y
-             (color y) (color node))))
+      (t (setf y (min (right node))
+               color (color y)
+               x (right y))
+         (cond
+           ((eq (parent y) node)
+            (setf (parent x) y))
+           (t (transplant y (right y))
+              (setf (right y) (right node)
+                    (parent (right y)) y)))
+         (transplant node y)
+         (setf (left y) (left node)
+               (parent (left y)) y
+               (color y) (color node))))
     ;; y was root, blacken sentinel and return
-    (when (not (node-p (parent y)))
-      (setf (color x) :black)
-      (setf (parent x) nil)
+    (unless (node-p (parent y))
+      (setf (color x) :black
+            (parent x) (sentinel (tree node)))
       (return-from %red-black-tree/delete x))
     (when (eq color :black)
       (if (eq (color x) :red)
           (setf (color x) :black) ;(%red-black-tree/delete-fix x)
           (return-from %red-black-tree/delete)))
     nil))
-
-(defparameter test  (make-tree 'red-black-tree :item-type 'integer))
-(defun tree-to-list (root)
-  "Returns the binary tree as a list."
-  (cond ((not (node-p root)) :sentinel)
-        (t
-         (list (format nil "color:~d value:~d" (color root)
-                       (caar (u:hash->alist (data root))))
-               (tree-to-list (left root))
-               (tree-to-list (right root))))))
-
-;; (loop :with test = (make-tree 'red-black-tree :item-type 'integer)
-;;       :with nums
-;;       :for random = (random 100)
-;;       :repeat 1000
-;;       :do (push random nums)
-;;           (insert test (make-node test random))
-;;           (unless (%red-black-tree/check-invariants test)
-;;             (return (values test t)))
-;;       finally (loop :named inner
-;;                     :with random-nums = (a:shuffle nums)
-;;                     :for n = (pop random-nums)
-;;                     :while n
-;;                     :do (delete test n)
-;;                         (unless (%red-black-tree/check-invariants test)
-;;                           (return (values test t))))
-;;               (return (values test nil)))
 
 (defun %red-black-tree/delete-fix (node)
   (macrolet ((fix (rotate1 rotate2)
@@ -180,7 +151,7 @@ TODO put in red-black tree tests"
                           (setf (color parent) :black
                                 (color grandparent) :red)
                           (let ((subroot (rotate rotate2 grandparent)))
-                            (when (not (node-p (parent subroot)))
+                            (unless (node-p (parent subroot))
                               (setf new-root subroot))))))))
               (if (eq parent (left grandparent))
                   (process #'right :left :right)

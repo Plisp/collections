@@ -102,7 +102,7 @@
 (defgeneric walk (tree func &key order)
   (:method ((tree tree) func &key (order :in))
     (check-type func function)
-    (a:when-let ((node (root tree)))
+    (a:when-let ((node (node-p (root tree))))
       (walk node func :order order))))
 
 (defgeneric find (tree item))
@@ -124,12 +124,12 @@
 
 (defgeneric min (tree)
   (:method ((tree tree))
-    (a:when-let ((node (root tree)))
+    (a:when-let ((node (node-p (root tree))))
       (min node))))
 
 (defgeneric max (tree)
   (:method ((tree tree))
-    (a:when-let ((node (root tree)))
+    (a:when-let ((node (node-p (root tree))))
       (max node))))
 
 (defgeneric previous (node))

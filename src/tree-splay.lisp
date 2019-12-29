@@ -10,27 +10,6 @@
 
 ;;; Internal utility functions
 
-(defun %splay-tree/join (node1 node2)
-  (unless (node-p node1)
-    (return-from %splay-tree/join node2))
-  (unless (node-p node2)
-    (return-from %splay-tree/join node1))
-  (let ((node (max node1)))
-    (%splay-tree/splay node)
-    (setf (right node) node2
-          (parent node2) node)
-    node))
-
-(defun %splay-tree/split (node)
-  (let ((node1 node)
-        (node2 nil))
-    (%splay-tree/splay node)
-    (when (node-p (right node))
-      (setf node2 (right node)
-            (parent node2) nil))
-    (setf (right node1) nil)
-    (values node1 node2)))
-
 (defun %splay-tree/splay (node)
   (loop :while (node-p (parent node))
         :do (cond
@@ -61,7 +40,7 @@
 
 (defmethod find ((tree splay-tree) item)
   (u:mvlet ((item node (%binary-search-tree/find tree item)))
-    (when node
+    (when (node-p node)
       (%splay-tree/splay node))
     (values item node)))
 
@@ -69,12 +48,13 @@
   (%splay-tree/splay node))
 
 (defmethod delete ((tree splay-tree) (node splay-tree-node))
-  (let ((left (make-tree 'splay-tree))
+  (let ((sentinel (sentinel tree))
+        (left (make-tree 'splay-tree))
         (right (make-tree 'splay-tree)))
     (when (node-p (root left))
-      (setf (parent (root left)) nil))
+      (setf (parent (root left)) sentinel))
     (when (node-p (root right))
-      (setf (parent (root right)) nil))
+      (setf (parent (root right)) sentinel))
     (setf (root left) (left (root tree))
           (root right) (right (root tree)))
     (if (node-p (root left))
@@ -83,5 +63,4 @@
           (setf (right (root left)) (root right)
                 (root tree) (root left)))
         (setf (root tree) (root right)))
-    node)
-  )
+    node))

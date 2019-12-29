@@ -29,13 +29,14 @@
 
 (defun %avl-tree/check-invariants (tree)
   (labels ((recur (node)
-             (cond ((not (node-p node)) 0)
-                   (t (let ((left-height (recur (left node)))
-                            (right-height (recur (right node))))
-                        (if (or (null left-height) (null right-height)
-                                (/= (+ left-height (balance-factor node)) right-height))
-                            nil
-                            (1+ (cl:max left-height right-height))))))))
+             (if (node-p node)
+                 (let ((left-height (recur (left node)))
+                       (right-height (recur (right node))))
+                   (when (and left-height right-height
+                              (= (+ left-height (balance-factor node))
+                                 right-height))
+                     (1+ (cl:max left-height right-height))))
+                 0)))
     (recur (root tree))))
 
 (defun %avl-tree/insertion-rebalance (new)
@@ -51,7 +52,7 @@ is returned, indicating rebalancing stopped before reaching the root))."
                   (-1 (setf child node))
                   (-2 ;   V  V parent of new-root's subtree after rotation
                    (let ((node-parent (parent node))
-                         (new-root (if (= (balance-factor child) +1)
+                         (new-root (if (= (balance-factor child) 1)
                                        (rotate :left/right node)
                                        (rotate :right node))))
                      (setf (parent new-root) node-parent)
@@ -61,8 +62,8 @@ is returned, indicating rebalancing stopped before reaching the root))."
                 ;; symmetric case for child = (right node)
                 (ecase (incf (balance-factor node))
                   (0 (return))
-                  (+1 (setf child node))
-                  (+2
+                  (1 (setf child node))
+                  (2
                    (let ((node-parent (parent node))
                          (new-root (if (= (balance-factor child) -1)
                                        (rotate :right/left node)
@@ -103,8 +104,8 @@ adjust the balance factor appropriately."
                      (eq child (left node)))
                 (ecase (incf (balance-factor node))
                   (0 (setf child node))
-                  (+1 (return))
-                  (+2
+                  (1 (return))
+                  (2
                    (let ((node-parent (parent node))
                          (right-child (right node)))
                      (if (= (balance-factor right-child) -1)
@@ -122,13 +123,13 @@ adjust the balance factor appropriately."
                   (-2
                    (let ((node-parent (parent node))
                          (left-child (left node)))
-                     (if (= (balance-factor left-child) +1)
+                     (if (= (balance-factor left-child) 1)
                          (setf child (rotate :left/right node))
                          (setf child (rotate :right node)))
                      (setf (parent child) node-parent)
                      (cond ((not (node-p node-parent))
                             (return child))
-                           ((= (balance-factor left-child) +1)
+                           ((= (balance-factor left-child) 1)
                             (return)))))))))
 
 ;;; Internal protocol
@@ -148,7 +149,7 @@ adjust the balance factor appropriately."
           (setf (left p) b)))
     (if (zerop (balance-factor b))
         (setf (balance-factor b) -1
-              (balance-factor node) +1)
+              (balance-factor node) 1)
         (setf (balance-factor b) 0
               (balance-factor node) 0))
     b))
@@ -167,7 +168,7 @@ adjust the balance factor appropriately."
           (setf (left p) b)
           (setf (right p) b)))
     (if (zerop (balance-factor b))
-        (setf (balance-factor b) +1
+        (setf (balance-factor b) 1
               (balance-factor node) -1)
         (setf (balance-factor b) 0
               (balance-factor node) 0))
@@ -181,12 +182,12 @@ adjust the balance factor appropriately."
     (rotate :right node)
     (case new-root-balance
       (-1
-       (setf (balance-factor node) +1
+       (setf (balance-factor node) 1
              (balance-factor z) 0))
       (0
        (setf (balance-factor node) 0
              (balance-factor z) 0))
-      (+1
+      (1
        (setf (balance-factor node) 0
              (balance-factor z) -1)))
     (setf (balance-factor new-root) 0)
@@ -201,11 +202,11 @@ adjust the balance factor appropriately."
     (case new-root-balance
       (-1
        (setf (balance-factor node) 0
-             (balance-factor z) +1))
+             (balance-factor z) 1))
       (0
        (setf (balance-factor node) 0
              (balance-factor z) 0))
-      (+1
+      (1
        (setf (balance-factor node) -1
              (balance-factor z) 0)))
     (setf (balance-factor new-root) 0)
