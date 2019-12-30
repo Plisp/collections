@@ -71,7 +71,7 @@
   (let ((parent (parent node))
         (right (right node)))
     (setf (right node) (left right))
-    (when (left right)
+    (when (node-p (left right))
       (setf (parent (left right)) node))
     (setf (parent right) parent)
     (cond
@@ -87,7 +87,7 @@
   (let ((parent (parent node))
         (left (left node)))
     (setf (left node) (right left))
-    (when (right left)
+    (when (node-p (right left))
       (setf (parent (right left)) node))
     (setf (parent left) parent)
     (cond
@@ -138,7 +138,7 @@
   (let ((parent (parent node1)))
     (cond
       ((not (node-p parent))
-       (setf (root (tree node2)) node2))
+       (setf (root (tree node1)) node2))
       ((eq node1 (left parent))
        (setf (left parent) node2))
       (t (setf (right parent) node2)))))

@@ -290,7 +290,7 @@ Returns the black depth of the tree on success."
                           (blacken parent)
                           (redden grandparent)
                           (let ((subroot (rotate rotate2 grandparent)))
-                            (when (not (node-p (parent subroot)))
+                            (unless (node-p (parent subroot))
                               (setf new-root subroot))))))))
               (if (eq parent (left grandparent))
                   (process #'right :left :right)

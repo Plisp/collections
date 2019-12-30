@@ -72,11 +72,10 @@
 (defun make-node (tree item &rest args)
   (let* ((class-name (class-name (class-of tree)))
          (type (a:format-symbol (symbol-package class-name) "~a-NODE"
-                                class-name))
-         (key (funcall (key tree) item)))
+                                class-name)))
     (apply #'make-instance type
            :tree tree
-           :key key
+           :key (when item (funcall (key tree) item))
            :data (u:dict (hash-test tree) item item)
            args)))
 
@@ -103,7 +102,7 @@
 (defgeneric walk (tree func &key order)
   (:method ((tree tree) func &key (order :in))
     (check-type func function)
-    (a:when-let ((node (root tree)))
+    (a:when-let ((node (node-p (root tree))))
       (walk node func :order order))))
 
 (defgeneric find (tree item))
@@ -121,16 +120,19 @@
 (defgeneric delete (tree item)
   (:method ((tree tree) item)
     (a:when-let ((node (node-p (nth-value 1 (find tree item)))))
-      (delete tree node))))
+      (if (<= (hash-table-count (data node)) 1)
+          (delete tree node)
+          (remhash item (data node)))
+      node)))
 
 (defgeneric min (tree)
   (:method ((tree tree))
-    (a:when-let ((node (root tree)))
+    (a:when-let ((node (node-p (root tree))))
       (min node))))
 
 (defgeneric max (tree)
   (:method ((tree tree))
-    (a:when-let ((node (root tree)))
+    (a:when-let ((node (node-p (root tree))))
       (max node))))
 
 (defgeneric previous (node))
