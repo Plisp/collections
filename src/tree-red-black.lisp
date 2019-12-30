@@ -25,6 +25,16 @@
 
 ;;; Internal utility functions
 
+(declaim (inline black-p red-p blacken redden))
+(defun black-p (node)
+  (eq (color node) :black))
+(defun red-p (node)
+  (eq (color node) :red))
+(defun blacken (node)
+  (setf (color node) :black))
+(defun redden (node)
+  (setf (color node) :red))
+
 (defun %red-black-tree/check-invariants (tree)
   "Checks the red-black-tree conditions for the tree/subtree with root ROOT.
 Returns the black depth of the tree on success.
@@ -41,116 +51,209 @@ TODO put in red-black tree tests"
                           (setf parcheck (and parcheck (eq (parent (right node)) node))))
                         (if (or (not parcheck) (null a) (null b) (/= a b))
                             nil
-                            (cond ((eq :black (color node)) (1+ a))
+                            (cond ((black-p node) (1+ a))
                                   (t
-                                   (if (and (eq :black (color (left node)))
-                                            (eq :black (color (right node))))
+                                   (if (and (black-p (left node))
+                                            (black-p (right node)))
                                        a
                                        nil)))))))))
-    (and (eq (color (root tree)) :black) (recur (root tree)))))
+    (and (black-p (root tree)) (recur (root tree)))))
 
-(defun %red-black-tree/delete (node)
-  (let* ((x nil)
-         (y node)
-         (color (color y)))
-    (cond
-      ((not (node-p (left node)))
-       (setf x (right node))
-       (transplant node (right node)))
-      ((not (node-p (right node)))
-       (setf x (left node))
-       (transplant node (left node)))
-      (t
-       (setf y (min (right node))
-             color (color y)
-             x (right y))
-       (cond
-         ((eq (parent y) node)
-          (setf (parent x) y))
-         (t (transplant y (right y))
-            (setf (right y) (right node)
-                  (parent (right y)) y)))
-       (transplant node y)
-       (setf (left y) (left node)
-             (parent (left y)) y
-             (color y) (color node))))
-    ;; y was root, blacken sentinel and return
-    (when (not (node-p (parent y)))
-      (setf (color x) :black)
-      (setf (parent x) nil)
-      (return-from %red-black-tree/delete x))
-    (when (eq color :black)
-      (if (eq (color x) :red)
-          (setf (color x) :black) ;(%red-black-tree/delete-fix x)
-          (return-from %red-black-tree/delete)))
-    nil))
+(let ((prev/next 0))
+  (defun %red-black-tree/delete (node root)
+    (let (x z) ; x is 'actually' deleted, z is x's child (may be +sentinel+)
+      (cond ((not (node-p (left node)))
+             (setf x node)
+             (setf z (right node)))
+            ((not (node-p (right node)))
+             (setf x node)
+             (setf z (left node)))
+            (t ; alternate successor/predecessor to lessen unbalancing
+             (if (zerop (setf prev/next (logxor prev/next 1)))
+                 (progn
+                   (setf x (min (right node)))
+                   (setf (data node) (data x))
+                   (setf z (right x)))
+                 (progn ; symmetric case
+                   (setf x (max (left node)))
+                   (setf (data node) (data x))
+                   (setf z (left x))))))
+      (when (eq x root) ; deleting root node, z is sentinel
+        (blacken z)
+        (return-from %red-black-tree/delete z))
+      (transplant x z)
+      (if (black-p x)
+          (if (red-p z)
+              (progn
+                ;; When the deleted node x is black and its only child z is red,
+                ;; blackening z respects the black-depth of the tree.
+                (blacken z)
+                root)
+              (%red-black-tree/delete-fix z (parent x) root))
+          ;; if x is red then its children must have been leaf nodes. Removing x
+          ;; has no effect on the black depth meaning no correction is needed
+          root))))
 
-(defparameter test  (make-tree 'red-black-tree :item-type 'integer))
-(defun tree-to-list (root)
-  "Returns the binary tree as a list."
-  (cond ((not (node-p root)) :sentinel)
-        (t
-         (list (format nil "color:~d value:~d" (color root)
-                       (caar (u:hash->alist (data root))))
-               (tree-to-list (left root))
-               (tree-to-list (right root))))))
+(defun %red-black-tree/delete-fix (node parent root)
+  (let (new-root)
+    (loop
+      :while (not (eq node root))
+      :finally (return root)
+      :do (setf new-root nil)
+          (if (eq (left parent) node)
+              (let ((alpha parent)
+                    (beta)
+                    (gamma)
+                    (delta))
+                (cond ((red-p alpha)
+                       (setf beta (right alpha))
+                       (setf gamma (left beta))
+                       (cond ((black-p gamma) ;1a
+                              (if (node-p (parent alpha))
+                                  (rotate :left alpha)
+                                  (setf root (rotate :left alpha))))
+                             (t
+                              (if (node-p (parent alpha))
+                                  (rotate :right/left alpha)
+                                  (setf root (rotate :right/left alpha)))
+                              (blacken alpha)))
+                       (return-from %red-black-tree/delete-fix root))
+                      ((black-p alpha)
+                       (setf beta (right alpha))
+                       (cond ((black-p beta)
+                              (setf gamma (left beta))
+                              (setf delta (right beta))
+                              (cond ((red-p gamma)
+                                     (cond ((red-p delta)
+                                            (redden beta)
+                                            (blacken gamma)
+                                            (blacken delta)) ; 2c -> 3
+                                           (t
+                                            (if (node-p (parent alpha))
+                                                (rotate :right/left alpha)
+                                                (setf root (rotate :right/left alpha)))
+                                            (blacken gamma)
+                                            (return-from %red-black-tree/delete-fix root)))) ; 2b1
+                                    ;; gamma is black, now decide if delta is black
+                                    ;; too (2a) or red (2b2)
+                                    (t
+                                     (cond ((red-p delta)
+                                            (if (node-p (parent alpha))
+                                                (rotate :left alpha)
+                                                (setf root (rotate :left alpha)))
+                                            (blacken delta)
+                                            (return-from %red-black-tree/delete-fix root)) ; 2b2
+                                           (t ; now comes 2a
+                                            (redden beta)
+                                            (setf new-root alpha))))))
+                             (t ; this means beta is red, this gives cases 3a and 3b
+                              (setf gamma (left beta))
+                              (setf delta (left gamma))
+                              (cond ((red-p delta) ; this is 3b
+                                     (if (node-p (parent alpha))
+                                         (rotate :left alpha)
+                                         (setf root (rotate :left alpha)))
+                                     (if (node-p (parent gamma))
+                                         (rotate :right gamma)
+                                         (setf root (rotate :right gamma)))
+                                     (if (node-p (parent alpha))
+                                         (rotate :left alpha)
+                                         (setf root (rotate :left alpha)))
+                                     (blacken beta)
+                                     (return-from %red-black-tree/delete-fix root))
+                                    (t ; this is 3a
+                                     (if (node-p (parent alpha))
+                                         (rotate :left alpha)
+                                         (setf root (rotate :left alpha)))
+                                     (if (node-p (parent alpha))
+                                         (rotate :left alpha)
+                                         (setf root (rotate :left alpha)))
+                                     (redden alpha)
+                                     (blacken beta)
+                                     (return-from %red-black-tree/delete-fix root))))))))
 
-;; (loop :with test = (make-tree 'red-black-tree :item-type 'integer)
-;;       :with nums
-;;       :for random = (random 100)
-;;       :repeat 1000
-;;       :do (push random nums)
-;;           (insert test (make-node test random))
-;;           (unless (%red-black-tree/check-invariants test)
-;;             (return (values test t)))
-;;       finally (loop :named inner
-;;                     :with random-nums = (a:shuffle nums)
-;;                     :for n = (pop random-nums)
-;;                     :while n
-;;                     :do (delete test n)
-;;                         (unless (%red-black-tree/check-invariants test)
-;;                           (return (values test t))))
-;;               (return (values test nil)))
-
-(defun %red-black-tree/delete-fix (node)
-  (macrolet ((fix (rotate1 rotate2)
-               (let ((child1 (a:symbolicate rotate1))
-                     (child2 (a:symbolicate rotate2)))
-                 `(progn
-                    (setf w (,child2 (parent x)))
-                    (when (eq (color w) :red)
-                      (setf (color w) :black
-                            (color (parent x)) :red)
-                      (rotate ,rotate1 (parent x))
-                      (setf w (,child2 (parent x))))
-                    (cond
-                      ((and (eq (color (,child1 w)) :black)
-                            (eq (color (,child2 w)) :black))
-                       (setf (color w) :red
-                             x (parent x)))
-                      ((eq (color (,child2 w)) :black)
-                       (setf (color (,child1 w)) :black
-                             (color w) :red)
-                       (rotate ,rotate2 w)
-                       (setf w (,child2 (parent x))))
-                      (t (setf (color w) (color (parent x))
-                               (color (parent x)) :black
-                               (color (,child2 w)) :black)
-                         (rotate ,rotate1 (parent x))
-                         (setf x (root (tree node)))))))))
-    (let ((x node)
-          (w nil))
-      (u:while (and (not (node-p x))
-                    (eq (color x) :black))
-        (if (eq x (left (parent x)))
-            (fix :left :right)
-            (fix :right :left))))))
+              ;; the following code is dual under left-right
+              (let ((alpha parent)
+                    (beta)
+                    (gamma)
+                    (delta))
+                (cond ((red-p alpha)
+                       (setf beta (left alpha))
+                       (setf gamma (right beta))
+                       (cond ((black-p gamma) ;1a
+                              (if (node-p (parent alpha))
+                                  (rotate :right alpha)
+                                  (setf root (rotate :right alpha))))
+                             (t
+                              (if (node-p (parent alpha))
+                                  (rotate :left/right alpha)
+                                  (setf root (rotate :left/right alpha)))
+                              (blacken alpha)))
+                       (return-from %red-black-tree/delete-fix root))
+                      ((black-p alpha)
+                       (setf beta (left alpha))
+                       (cond ((black-p beta)
+                              (setf gamma (right beta))
+                              (setf delta (left beta))
+                              (cond ((red-p gamma)
+                                     (cond ((red-p delta)
+                                            (redden beta)
+                                            (blacken gamma)
+                                            (blacken delta)) ; 2c -> 3
+                                           (t
+                                            (if (node-p (parent alpha))
+                                                (rotate :left/right alpha)
+                                                (setf root (rotate :left/right alpha)))
+                                            (blacken gamma)
+                                            (return-from %red-black-tree/delete-fix root)))) ; 2b1
+                                    ;; gamma is black, is delta is black too (2a)?
+                                    ;; or red (2b2)
+                                    (t
+                                     (cond ((red-p delta)
+                                            (if (node-p (parent alpha))
+                                                (rotate :right alpha)
+                                                (setf root (rotate :right alpha)))
+                                            (blacken delta)
+                                            (return-from %red-black-tree/delete-fix root)) ; 2b2
+                                           (t ; now comes 2a
+                                            (redden beta)
+                                            (setf new-root alpha))))))
+                             (t ; this means beta is red, this gives cases 3a and 3b
+                              (setf gamma (right beta))
+                              (setf delta (right gamma))
+                              (cond ((red-p delta) ; this is 3b
+                                     (if (node-p (parent alpha))
+                                         (rotate :right alpha)
+                                         (setf root (rotate :right alpha)))
+                                     (if (node-p (parent gamma))
+                                         (rotate :left gamma)
+                                         (setf root (rotate :left gamma)))
+                                     (if (node-p (parent alpha))
+                                         (rotate :right alpha)
+                                         (setf root (rotate :right alpha)))
+                                     (blacken beta)
+                                     (return-from %red-black-tree/delete-fix root))
+                                    (t ; this is 3a
+                                     (if (node-p (parent alpha))
+                                         (rotate :right alpha)
+                                         (setf root (rotate :right alpha)))
+                                     (if (node-p (parent alpha))
+                                         (rotate :right alpha)
+                                         (setf root (rotate :right alpha)))
+                                     (redden alpha)
+                                     (blacken beta)
+                                     (return-from %red-black-tree/delete-fix root)))))))))
+          (when new-root
+            (setf node new-root)
+            (setf parent (parent node))))))
 
 ;;; Internal protocol
 
 (defmethod transplant :after ((node1 red-black-tree-node)
                               (node2 red-black-tree-node))
-  (setf (parent node2) (parent node1)))
+  (if (node-p node2)
+      (setf (parent node2) (parent node1))
+      (setf (parent node2) (sentinel (tree node2)))))
 
 ;;; User protocol
 
@@ -162,23 +265,23 @@ TODO put in red-black tree tests"
         :for parent = (parent current)
         :for grandparent = (parent parent)
         :with new-root = (root tree)
-        :while (eq (color parent) :red)
+        :while (red-p parent)
         :do (flet ((process (child rotate1 rotate2)
                      (let ((y (funcall child grandparent)))
                        (ecase (color y)
                          (:red
-                          (setf (color parent) :black
-                                (color y) :black
-                                (color grandparent) :red
-                                current grandparent))
+                          (blacken parent)
+                          (blacken y)
+                          (redden grandparent)
+                          (setf current grandparent))
                          (:black
                           (when (eq current (funcall child parent))
                             (setf current parent)
                             (rotate rotate1 current)
                             (setf parent (parent current)
                                   grandparent (parent parent)))
-                          (setf (color parent) :black
-                                (color grandparent) :red)
+                          (blacken parent)
+                          (redden grandparent)
                           (let ((subroot (rotate rotate2 grandparent)))
                             (when (not (node-p (parent subroot)))
                               (setf new-root subroot))))))))
@@ -189,6 +292,5 @@ TODO put in red-black tree tests"
                        (color (root tree)) :black)))
 
 (defmethod delete ((tree red-black-tree) (node red-black-tree-node))
-  (a:when-let ((new-root (%red-black-tree/delete node)))
-    (setf (root tree) new-root))
+  (setf (root tree) (%red-black-tree/delete node (root tree)))
   node)

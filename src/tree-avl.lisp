@@ -220,5 +220,5 @@ adjust the balance factor appropriately."
 (defmethod delete ((tree avl-tree) (node avl-tree-node))
   (a:when-let ((new-root (%avl-tree/delete node)))
     (setf (root tree) new-root))
-  (setf (parent (sentinel tree)) nil)
+  (setf (parent (sentinel tree)) (sentinel tree))
   node)

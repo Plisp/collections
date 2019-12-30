@@ -127,11 +127,11 @@
   (%binary-search-tree/rotate-right node))
 
 (defmethod rotate ((direction (eql :left/right)) (node binary-search-tree-node))
-  (%binary-search-tree/rotate-left node)
+  (%binary-search-tree/rotate-left (left node))
   (%binary-search-tree/rotate-right node))
 
 (defmethod rotate ((direction (eql :right/left)) (node binary-search-tree-node))
-  (%binary-search-tree/rotate-right node)
+  (%binary-search-tree/rotate-right (right node))
   (%binary-search-tree/rotate-left node))
 
 (defmethod transplant ((node1 binary-search-tree-node) node2)
