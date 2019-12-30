@@ -173,7 +173,7 @@
   (loop :with sorter = (sorter tree)
         :with key = (key node)
         :with current = (root tree)
-        :with parent = (sentinel tree)
+        :with parent
         :while (node-p current)
         :do (setf parent current)
             (if (funcall sorter key (key current))

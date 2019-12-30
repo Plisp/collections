@@ -34,9 +34,7 @@
 ;;; Type definitions and constructors
 
 (defclass tree ()
-  ((%sentinel :accessor sentinel
-              :initform nil)
-   (%root :accessor root
+  ((%root :accessor root
           :initform nil)
    (%item-type :reader item-type
                :initarg :item-type)
@@ -84,10 +82,13 @@
 
 ;;; Internal utility functions
 
-(defun node-p (node)
-  (unless (or (not (typep node 'node))
-              (eq node (sentinel (tree node))))
-    node))
+(defgeneric node-p (node)
+  (:method and (object)
+    (typep object 'node))
+  (:method :around (node)
+    (when (call-next-method)
+      node))
+  (:method-combination and :most-specific-last))
 
 ;;; Internal protocol
 

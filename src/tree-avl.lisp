@@ -7,7 +7,9 @@
 
 ;;; Type definitions and constructors
 
-(defclass avl-tree (binary-search-tree) ())
+(defclass avl-tree (binary-search-tree)
+  ((%sentinel :accessor sentinel
+              :initform nil)))
 
 (defclass avl-tree-node (binary-search-tree-node)
   ((%height :accessor height
@@ -133,6 +135,9 @@ adjust the balance factor appropriately."
 
 ;;; Internal protocol
 
+(defmethod node-p and ((node avl-tree-node))
+  (not (eq node (sentinel (tree node)))))
+
 (defmethod rotate ((direction (eql :left)) (node avl-tree-node))
   (let ((p (parent node))
         (b (right node)))
@@ -214,6 +219,8 @@ adjust the balance factor appropriately."
 ;;; User protocol
 
 (defmethod insert :after ((tree avl-tree) (node avl-tree-node))
+  (unless (node-p (parent node))
+    (setf (parent node) (sentinel tree)))
   (a:when-let ((new-root (%avl-tree/insertion-rebalance node)))
     (setf (root tree) new-root)))
 

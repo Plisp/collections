@@ -7,7 +7,9 @@
 
 ;;; Type definitions and constructors
 
-(defclass red-black-tree (binary-search-tree) ())
+(defclass red-black-tree (binary-search-tree)
+  ((%sentinel :accessor sentinel
+              :initform nil)))
 
 (defclass red-black-tree-node (binary-search-tree-node)
   ((%color :accessor color
@@ -16,12 +18,16 @@
 (defmethod initialize-instance :after ((instance red-black-tree) &key)
   (let ((sentinel (make-node instance nil)))
     (setf (sentinel instance) sentinel
-          (root instance) sentinel)))
+          (root instance) sentinel
+          (left sentinel) sentinel
+          (right sentinel) sentinel
+          (parent sentinel) sentinel
+          (color sentinel) :black)))
 
 (defmethod initialize-instance :after ((instance red-black-tree-node) &key)
-  (setf (parent instance) instance
-        (left instance) instance
-        (right instance) instance))
+  (setf (left instance) (sentinel (tree instance))
+        (right instance) (sentinel (tree instance))
+        (color instance) :red))
 
 ;;; Internal utility functions
 
@@ -37,8 +43,7 @@
 
 (defun %red-black-tree/check-invariants (tree)
   "Checks the red-black-tree conditions for the tree/subtree with root ROOT.
-Returns the black depth of the tree on success.
-TODO put in red-black tree tests"
+Returns the black depth of the tree on success."
   (labels ((recur (node)
              (cond ((not (node-p node)) 0)
                    (t (let ((a (recur (left node)))
@@ -249,6 +254,9 @@ TODO put in red-black tree tests"
 
 ;;; Internal protocol
 
+(defmethod node-p and ((node red-black-tree-node))
+  (not (eq node (sentinel (tree node)))))
+
 (defmethod transplant :after ((node1 red-black-tree-node)
                               (node2 red-black-tree-node))
   (if (node-p node2)
@@ -258,9 +266,8 @@ TODO put in red-black tree tests"
 ;;; User protocol
 
 (defmethod insert :after ((tree red-black-tree) (node red-black-tree-node))
-  (setf (left node) (sentinel tree)
-        (right node) (sentinel tree)
-        (color node) :red)
+  (unless (node-p (parent node))
+    (setf (parent node) (sentinel tree)))
   (loop :with current = node
         :for parent = (parent current)
         :for grandparent = (parent parent)
